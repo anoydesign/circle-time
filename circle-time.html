@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>circle-time</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .time-row {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .time {
+            width: 50px;
+            text-align: right;
+            margin-right: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 50px;
+        }
+
+        .circle {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(black 0deg, transparent 0deg), lightgray;
+        }
+
+        .small-circle {
+            width: 50px;
+            height: 50px;
+        }
+
+        .schedule {
+            margin-left: 20px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const totalTime = 30 * 60 * 1000; // 30 minutes in milliseconds
+            const interval = 1000; // 1 second
+
+            // ローカルストレージから予定を読み込む
+            const loadSchedules = () => {
+                const schedules = localStorage.getItem("schedules");
+                return schedules ? JSON.parse(schedules) : {};
+            };
+
+            // ローカルストレージに予定を保存する
+            const saveSchedules = (schedules) => {
+                localStorage.setItem("schedules", JSON.stringify(schedules));
+            };
+
+            // 現在の時刻を取得
+            const now = new Date();
+            const currentHour = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // 既存の予定をロード
+            const schedules = loadSchedules();
+
+            // 8時から20時までの行を作成
+            for (let hour = 8; hour <= 20; hour++) {
+                const timeRow = document.createElement("div");
+                timeRow.className = "time-row";
+
+                const timeLabel = document.createElement("div");
+                timeLabel.className = "time";
+                timeLabel.textContent = hour + ":00";
+
+                const container = document.createElement("div");
+                container.className = "container";
+
+                const leftCircle = document.createElement("div");
+                leftCircle.className = "circle";
+
+                const rightCircle = document.createElement("div");
+                rightCircle.className = "circle";
+
+                container.appendChild(leftCircle);
+                container.appendChild(rightCircle);
+
+                const schedule = document.createElement("input");
+                schedule.className = "schedule";
+                schedule.type = "text";
+                schedule.placeholder = "予定を入力";
+                schedule.value = schedules[hour] || ""; // 既存の予定を設定
+
+                // 予定が変更されたときに保存する
+                schedule.addEventListener("input", () => {
+                    schedules[hour] = schedule.value;
+                    saveSchedules(schedules);
+                });
+
+                timeRow.appendChild(timeLabel);
+                timeRow.appendChild(container);
+                timeRow.appendChild(schedule);
+                document.body.appendChild(timeRow);
+
+                const updateCircle = (circle, elapsedTime) => {
+                    const percentage = elapsedTime / totalTime;
+                    const angle = percentage * 360;
+                    circle.style.background = `conic-gradient(black ${angle}deg, transparent ${angle}deg), lightgray`;
+                    if (elapsedTime < totalTime) {
+                        setTimeout(() => updateCircle(circle, elapsedTime + interval), interval);
+                    }
+                };
+
+                // 現在の時間に基づいて初期の塗りつぶし状態を設定
+                if (hour === currentHour) {
+                    if (minutes < 30) {
+                        // 00分～29分の場合は左の円
+                        const elapsedTimeLeft = (minutes * 60 + seconds) * 1000;
+                        const leftInitialAngle = (elapsedTimeLeft / totalTime) * 360;
+                        leftCircle.style.background = `conic-gradient(black ${leftInitialAngle}deg, transparent ${leftInitialAngle}deg), lightgray`;
+
+                        if (elapsedTimeLeft < totalTime) {
+                            setTimeout(() => updateCircle(leftCircle, elapsedTimeLeft + interval), interval);
+                        }
+                    } else {
+                        // 30分～59分の場合は右の円
+                        const elapsedTimeRight = ((minutes - 30) * 60 + seconds) * 1000;
+                        const rightInitialAngle = (elapsedTimeRight / totalTime) * 360;
+                        rightCircle.style.background = `conic-gradient(black ${rightInitialAngle}deg, transparent ${rightInitialAngle}deg), lightgray`;
+
+                        if (elapsedTimeRight < totalTime) {
+                            setTimeout(() => updateCircle(rightCircle, elapsedTimeRight + interval), interval);
+                        }
+                    }
+                } else if (hour < currentHour || (hour === currentHour && minutes >= 30)) {
+                    // 現在の時間よりも前の時間帯の円は完全に塗りつぶし
+                    leftCircle.style.background = `conic-gradient(black 360deg, transparent 360deg), lightgray`;
+                    rightCircle.style.background = `conic-gradient(black 360deg, transparent 360deg), lightgray`;
+                    leftCircle.classList.add("small-circle");
+                    rightCircle.classList.add("small-circle");
+                } else {
+                    // 現在の時間よりも後の時間帯の円は何も塗りつぶされない
+                    leftCircle.classList.add("small-circle");
+                    rightCircle.classList.add("small-circle");
+                }
+            }
+
+            // 時間が切り替わったら自動で更新
+            setInterval(() => {
+                const newNow = new Date();
+                const newCurrentHour = newNow.getHours();
+                const newMinutes = newNow.getMinutes();
+                if (newCurrentHour !== currentHour || (newCurrentHour === currentHour && newMinutes === 0)) {
+                    location.reload();
+                }
+            }, 60 * 1000); // 1分ごとにチェック
+        });
+    </script>
+</body>
+</html>
